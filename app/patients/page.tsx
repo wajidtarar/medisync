@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import DeleteButton from './DeleteButton'
 
 export default async function PatientsPage() {
   const supabase = await createClient()
@@ -9,18 +11,30 @@ export default async function PatientsPage() {
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
   const { data: patients, error } = await supabase
     .from('patients')
     .select('*')
 
+  const isAdmin = profile?.role === 'admin'
+
   return (
     <div style={{ maxWidth: 600, margin: '40px auto' }}>
       <h1>Patients</h1>
-      <p>Logged in as: {user.email}</p>
+      <p>Logged in as: {user.email} ({profile?.role})</p>
+      <Link href="/patients/new">+ Add Patient</Link>
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
       <ul>
         {patients?.map((p) => (
-          <li key={p.id}>{p.full_name} — {p.date_of_birth}</li>
+          <li key={p.id} style={{ marginBottom: 8 }}>
+            {p.full_name} — {p.date_of_birth}
+            {isAdmin && <DeleteButton patientId={p.id} />}
+          </li>
         ))}
       </ul>
     </div>
