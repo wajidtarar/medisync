@@ -13,13 +13,24 @@ export default async function PatientsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, tenant_id')
     .eq('id', user.id)
     .single()
 
   const { data: patients, error } = await supabase
     .from('patients')
     .select('*')
+
+  // Log the view event (fire-and-forget, don't block the page on this)
+  if (profile) {
+    supabase.from('audit_log').insert({
+      tenant_id: profile.tenant_id,
+      actor_id: user.id,
+      action: 'select',
+      table_name: 'patients',
+      details: { count: patients?.length ?? 0 },
+    }).then()
+  }
 
   const isAdmin = profile?.role === 'admin'
 
@@ -28,6 +39,7 @@ export default async function PatientsPage() {
       <h1>Patients</h1>
       <p>Logged in as: {user.email} ({profile?.role})</p>
       <Link href="/patients/new">+ Add Patient</Link>
+      {isAdmin && <> | <Link href="/audit-log">View Audit Log</Link></>}
       {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
       <ul>
         {patients?.map((p) => (
